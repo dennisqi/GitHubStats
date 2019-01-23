@@ -2,15 +2,20 @@ import os
 import datetime
 
 
+def parsed(string):
+    string.split('-')
+    return datetime.datetime(
+        int(datetimes[0]), int(datetimes[1]),
+        int(datetimes[2]), int(datetimes[3]))
+
+
 def get_parse_datetime(last_line):
     substring = last_line.split('.')[-3]
     if substring:
         splited = substring.split('/')
         if splited and len(splited) > 1:
-            datetimes = splited[1].split('-')
-            return datetime.datetime(
-                int(datetimes[0]), int(datetimes[1]),
-                int(datetimes[2]), int(datetimes[3]))
+            datetimes = splited[1]
+            return parsed(datetimes)
 
 
 def get_start_datetime(url_file):
