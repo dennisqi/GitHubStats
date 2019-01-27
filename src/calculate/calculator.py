@@ -15,10 +15,8 @@ class Calculator:
         self.sqlContext = SQLContext(self.sc)
         self.calculated_file = calculated_file
 
-    def get_json_path_from_s3(self, object):
-        return 's3n://' + object.bucket_name + '/' + object.key
-
-    def get_dataframe_from_json(self, json_path):
+    def get_dataframe(self, object):
+        json_path = 's3n://' + object.bucket_name + '/' + object.key
         return self.sqlContext.read.json(json_path)
 
     def parsed(self, string):
@@ -53,8 +51,7 @@ class Calculator:
         date_time = self.get_date_time(object, last_calculated)
         if not date_time:
             return
-        json_path = self.get_json_path_from_s3(object)
-        df = self.get_dataframe_from_json(json_path)
+        df = self.get_dataframe(object)
         num_repos = 0
         try:
             df_columns = df.columns
