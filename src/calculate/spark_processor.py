@@ -49,7 +49,7 @@ class SparkProcessor:
             keyword = 'object' if 'object' in df_first_record['payload'] else 'ref_type'
             num_create_events = \
                 df.filter(col('payload')[keyword] == 'repository') \
-                .filter(col('type') == 'CreateEvent' | col('type') == 'Event') \
+                .filter((col('type') == 'CreateEvent') | (col('type') == 'Event')) \
                 .count()
 
         except Exception as e:
