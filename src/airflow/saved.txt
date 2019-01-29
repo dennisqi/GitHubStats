@@ -1,0 +1,6 @@
+http://data.gharchive_compressed.org/2017-09-18-20.json.gz
+http://data.gharchive_compressed.org/2017-09-18-21.json.gz
+http://data.gharchive_compressed.org/2017-09-18-20.json.gz
+http://data.gharchive_compressed.org/2017-09-18-21.json.gz
+http://data.gharchive-compressed.org/2017-09-18-20.json.gz
+http://data.gharchive-compressed.org/2017-09-18-21.json.gz
