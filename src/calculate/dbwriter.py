@@ -4,18 +4,22 @@ import psycopg2
 
 class DBRwiter(object):
 
-    def __init__(self, host, dbname, user, password,
-                 calculated_file='../../data/calcluated.txt'):
+    def __init__(self, host, dbname, user, password, processor_write):
         print('Connecting to DB...')
         self.conn = psycopg2.connect(
             host=host, database=dbname, user=user, password=password)
         print('Connected.')
-        self.calculated_file = calculated_file
+        self.processor_write = processor_write
 
-    def write_to_db(
-            self, create_table_sql, insert_sql, insert_para, backup_log):
+    def write_to_db(self, wheather_create_table, create_table_sql, insert_sql, insert_param, file_name):
+        """
+        If wheather_create_table is True, execute create_table_sql.
+        Eexecute insert_sql with insert_paramself.
+        Append backup_sentence to self.backup_file.
+        """
         cur = self.conn.cursor()
-        cur.execute(create_table_sql)
+        if wheather_create_table:
+            cur.execute(create_table_sql)
         self.conn.commit()
 
         try:
@@ -23,8 +27,8 @@ class DBRwiter(object):
         except psycopg2.IntegrityError as ie:
             print("Diplicate key.")
         else:
-            with open(self.calculated_file, 'w') as calculated:
-                calculated.write(backup_log)
+            with open(self.processor_write, 'a') as processor_write:
+                processor_write.write(file_name)
 
         self.conn.commit()
         cur.close()
