@@ -18,6 +18,7 @@ class SparkProcessor:
         # sc_conf.set('spark.driver.extraClassPath', '../../lib/postgresql-42.2.5.jar')
 
         sc = SparkContext(conf=sc_conf)
+        self.accum = sc.accumulator(0)
         hadoop_conf = sc._jsc.hadoopConfiguration()
         hadoop_conf.set("fs.s3n.awsAccessKeyId", aws_id)
         hadoop_conf.set("fs.s3n.awsSecretAccessKey", aws_key)
@@ -61,6 +62,8 @@ class SparkProcessor:
             count the number of CreateEvents in the file.
         Returns a dict, contains date_time and num_create_events.
         """
+        self.accum.add(1)
+        print(self.accum)
         date_time = self.parse_datetime_from_filename(file_name)
         if not date_time:
             return
@@ -100,7 +103,19 @@ class SparkProcessor:
         date_time_7 = date_time - datetime.timedelta(days=7)
         self.seven_days[date_time] = num_create_events
         if date_time_7 not in self.seven_days:
-            return 1.0
+            cur = self.conn.cursor()
+            if wheather_create_table:
+                cur.execute(create_table_sql)
+            self.conn.commit()
+            cur.execute(
+                'SELECT num_creation from num_repo_creation_v3 where date_time = %s',
+                (date_time_7,))
+            self.conn.commit()
+            result = cur.fetchone()
+            if not result:
+                return 1.0
+            result = result[0]
+            return 1.0 + (num_create_events - float(result)) / float(result)
         result = self.seven_days.pop(date_time_7)
         return 1.0 + (num_create_events - float(result)) / float(result)
 
