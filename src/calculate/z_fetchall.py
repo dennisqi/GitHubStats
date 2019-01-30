@@ -4,9 +4,13 @@ import psycopg2
 
 
 if __name__ == '__main__':
-    sql = 'select * from num_repo_creation'
+    # num_repo_creation_v2
+    # num_repo_creation
+    sql = 'select * from '
     if len(sys.argv) >= 2:
-        sql = sys.argv[0]
+        sql += sys.argv[1]
+    else:
+        raise ValueError('Need a table name to process.')
     print('Connecting to DB...')
     conn = psycopg2.connect(
         host=os.environ.get('PG_HOST'),
