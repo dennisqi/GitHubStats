@@ -9,7 +9,7 @@ class SparkProcessor:
 
     def __init__(self, aws_id, aws_key):
         sc_conf = SparkConf()
-        sc_conf.setAppName('gha')
+        sc_conf.setAppName('ghalarge_deployMode_cluster')
         sc_conf.setMaster(
             'spark://ec2-52-45-53-97.compute-1.amazonaws.com:7077')
         # sc_conf.set('spark.executor.memory', '6g')
@@ -17,7 +17,7 @@ class SparkProcessor:
         # sc_conf.set('spark.driver.cores', '6')
         # sc_conf.set('spark.driver.memory', '6g')
         # sc_conf.set('spark.logConf', True)
-        sc_conf.set('spark.submit.deployMode', 'client')
+        sc_conf.set('spark.submit.deployMode', 'cluster')
         # sc_conf.set('spark.python.worker.memory', '6g')
         # sc_conf.set('spark.files.maxPartitionBytes', '6g')
         sc = SparkContext(conf=sc_conf)
@@ -25,7 +25,7 @@ class SparkProcessor:
         hadoop_conf.set("fs.s3n.awsAccessKeyId", aws_id)
         hadoop_conf.set("fs.s3n.awsSecretAccessKey", aws_key)
         self.sqlContext = SQLContext(sc)
-        self.default_start_datetime = datetime.datetime(2011, 2, 12, 0)
+        self.default_start_datetime = datetime.datetime(2011, 2, 11, 0)
 
     def process(self, bucket_name, file_name):
         """
