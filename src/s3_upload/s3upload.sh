@@ -6,10 +6,10 @@ while read p; do
     echo $gz_file
     bucket_name=gharchive
     url=http://data.$bucket_name.org/$file_name.gz
-    wget -qO- $p | gunzip | aws s3 cp - s3://$bucket_name/$file_name | echo $url >> $saved_urls
+    wget -qO- $p | gunzip | aws s3 cp - s3://$bucket_name/$file_name | echo $url >> $2
 done < $1
 
-rm $coming_urls | touch $coming_urls
+rm $1 | touch $1
 
 # ../../data/coming_urls.txt
 # /home/ubuntu/GitHubStats/data/saved_urls.txt
