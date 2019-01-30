@@ -7,7 +7,7 @@ from pyspark.sql.functions import col
 
 class SparkProcessor:
 
-    def __init__(self, aws_id, aws_key):
+    def __init__(self, aws_id, aws_key, host, dbname, user, password, processor_write):
         sc_conf = SparkConf()
         sc_conf.setAppName('ghalarge_deployMode_cluster')
         sc_conf.setMaster(
@@ -17,6 +17,7 @@ class SparkProcessor:
         # sc_conf.set('spark.driver.cores', '6')
         # sc_conf.set('spark.driver.memory', '6g')
         # sc_conf.set('spark.logConf', True)
+        # sc_conf.set('spark.driver.extraClassPath', '../../lib/postgresql-42.2.5.jar')
         sc_conf.set('spark.submit.deployMode', 'cluster')
         # sc_conf.set('spark.python.worker.memory', '6g')
         # sc_conf.set('spark.files.maxPartitionBytes', '6g')
@@ -26,6 +27,34 @@ class SparkProcessor:
         hadoop_conf.set("fs.s3n.awsSecretAccessKey", aws_key)
         self.sqlContext = SQLContext(sc)
         self.default_start_datetime = datetime.datetime(2011, 2, 11, 0)
+        print('Connecting to DB...')
+        self.conn = psycopg2.connect(
+            host=host, database=dbname, user=user, password=password)
+        print('Connected.')
+        self.processor_write = processor_write
+
+    def write_to_db(self, wheather_create_table, create_table_sql, insert_sql, insert_param, file_name):
+        """
+        If wheather_create_table is True, execute create_table_sql.
+        Eexecute insert_sql with insert_paramself.
+        Append backup_sentence to self.backup_file.
+        """
+        cur = self.conn.cursor()
+        if wheather_create_table:
+            cur.execute(create_table_sql)
+        self.conn.commit()
+
+        try:
+            cur.execute(insert_sql, insert_param)
+        except psycopg2.IntegrityError as ie:
+            print("Diplicate key.")
+        else:
+            with open(self.processor_write, 'a') as processor_write:
+                processor_write.write(file_name + '\n')
+                print('WROTE RECODR: ' + file_name)
+
+        self.conn.commit()
+        cur.close()
 
     def process(self, bucket_name, file_name):
         """
@@ -55,11 +84,29 @@ class SparkProcessor:
         except Exception as e:
             self.print_error(e)
 
+        rate_last_week = self.rate_last_week(date_time, num_create_events)
+
         if num_create_events:
             return {
                 'date_time': date_time,
-                'num_create_events': num_create_events
+                'num_create_events': num_create_events,
+                'rate_last_week': rate_last_week
             }
+
+    def rate_last_week(self, date_time, num_create_events):
+        """
+        Given a datetime predict and num_create_events,
+            calculate the increasing rate of today compare to last week
+        """
+        cur = self.conn.cursor()
+        cur.execute(
+            'SELECT num_create_events from num_repo_creation_v3 where date_time = %s',
+            (date_time - timedelta(days=7)))
+        self.conn.commit()
+        result = cur.fetch_one()
+        if not result:
+            return 1.0
+        return 1.0 + (num_create_events - float(result)) / float(result)
 
     def get_dataframe_from_s3(self, bucket_name, file_name):
         """
