@@ -23,12 +23,13 @@ class DBRwiter(object):
         self.conn.commit()
 
         try:
-            cur.execute(insert_sql, insert_para)
+            cur.execute(insert_sql, insert_param)
         except psycopg2.IntegrityError as ie:
             print("Diplicate key.")
         else:
             with open(self.processor_write, 'a') as processor_write:
-                processor_write.write(file_name)
+                processor_write.write(file_name + '\n')
+                print('WROTE RECODR: ' + file_name)
 
         self.conn.commit()
         cur.close()
