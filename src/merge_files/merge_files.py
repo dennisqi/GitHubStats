@@ -10,7 +10,8 @@ dt = default_start_datetime
 s3 = boto3.resource('s3')
 b_name1 = 'ghalargefiletest'
 b_name2 = 'gharchive'
-large_json = 'ghalarge'
+head = 'ghalarge'
+tail = '.json'
 
 one_day = timedelta(days=1)
 one_hour = timedelta(hours=1)
@@ -30,7 +31,7 @@ while dt < default_end_datetime:
     day = '%02d' % dt.day
     ymd = year + '-' + month + '-' + day
     counter = 0
-    large_file_name = large_json + ymd + '.json'
+    large_file_name = head + ymd + tail
     print(large_file_name)
     if s3_contains(s3, b_name1, large_file_name):
         dt += one_day
