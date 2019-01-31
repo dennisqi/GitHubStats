@@ -11,8 +11,8 @@ class UrlFileGenerator(object):
 
     def __init__(
         self,
-        saved_urls_file='../../data/saved_urls.txt',
-        coming_urls_file='../../data/coming_urls.txt',
+        saved_urls_file='/home/ubuntu/GitHubStats/data/url_generator_saved_urls.txt',
+        coming_urls_file='/home/ubuntu/GitHubStats/data/url_generator_coming_urls.txt',
         default_start_datetime=datetime.datetime(2011, 2, 11, 23)
     ):
         self.saved_urls_file = saved_urls_file

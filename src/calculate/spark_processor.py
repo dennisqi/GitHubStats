@@ -15,7 +15,6 @@ class SparkProcessor:
             'spark://ec2-52-45-53-97.compute-1.amazonaws.com:7077')
         sc_conf.set('spark.executor.memory', '6g')
         sc_conf.set('spark.submit.deployMode', 'cluster')
-        # sc_conf.set('spark.driver.extraClassPath', '../../lib/postgresql-42.2.5.jar')
 
         sc = SparkContext(conf=sc_conf)
         self.accum = sc.accumulator(0)
@@ -203,6 +202,7 @@ class SparkProcessor:
         Given a file name, return a dict contains
             'string_before_date', 'year', month', day'
         """
+
         return {
             'string_before_date': file_name[:-15],
             'year': file_name[-15:-11],
