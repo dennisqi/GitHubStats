@@ -3,7 +3,7 @@ import psycopg2
 import datetime
 import subprocess
 from pyspark import SparkContext, SQLContext, SparkConf
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, datediff, to_date, date_add, coalesce
 
 
 class SparkProcessor:
@@ -29,8 +29,13 @@ class SparkProcessor:
 
         # Connect to DB
         print('Connecting to DB...')
-        self.conn = psycopg2.connect(host=host, database=dbname, user=user, password=password)
+        # self.conn = psycopg2.connect(host=host, database=dbname, user=user, password=password)
+        self.postgres_url = 'jdbc:postgresql://%s/%s' % (host, dbname)
+        self.properties = {'user': user, 'password': password}
         print('Connected.')
+
+    def df_write_to_db(self, df, table_name):
+        df.write.jdbc(url=self.postgres_url, table=table_name, properties=self.properties)
 
     def write_to_db(self, wheather_create_table, create_table_sql, insert_sql, insert_param, file_name):
         """
@@ -54,6 +59,76 @@ class SparkProcessor:
 
         self.conn.commit()
         cur.close()
+
+    def read_all_to_df(self, bucket_name):
+        """Given a bucket name read all file on that bucket to a df
+        """
+        df = self.sqlContext.read.json('s3n://' + bucket_name + '/')
+        # df.show()
+        return df
+
+    def process_df(self, df):
+        # There are two versions of API for CreateEvent of repository:
+        # - One is        col("payload")['object'] == 'repository'
+        # - Another is    col("payload")['ref_type'] == 'repository'
+        # try:
+        df_columns = df.columns
+        df_first_record = df.first()
+        keyword = 'object' if 'object' in df_first_record['payload'] else 'ref_type'
+
+        num_create_events_df = \
+            df \
+            .filter(col('payload')[keyword] == 'repository') \
+            .filter((col('type') == 'CreateEvent') | (col('type') == 'Event'))
+
+        num_create_events_by_date_df = num_create_events_df.groupby(to_date(df.created_at).alias('date_created_at')).count()
+
+        num_create_events_by_date_df_1 = num_create_events_by_date_df.alias('num_create_events_by_date_df_1')
+
+        num_create_events_by_date_df_1 = \
+            num_create_events_by_date_df_1 \
+            .select(
+                col('date_created_at').alias('date_created_at_1'),
+                col('count').alias('count_1'))
+
+        num_create_events_by_date_df_2 = num_create_events_by_date_df.alias('num_create_events_by_date_df_2')
+
+        num_create_events_by_date_df_2 = \
+            num_create_events_by_date_df_2 \
+            .select(
+                col('date_created_at').alias('date_created_at_2'),
+                col('count').alias('count_2'))
+
+        joined_num_create_events_df = \
+            num_create_events_by_date_df_1 \
+            .withColumn(
+                'last_week_date_created_at',
+                date_add(num_create_events_by_date_df_1.date_created_at_1, 7)) \
+            .join(
+                num_create_events_by_date_df_2,
+                col('last_week_date_created_at')
+                == col('date_created_at_2'),
+                how='left_outer')
+
+        joined_num_create_events_df = joined_num_create_events_df.withColumn(
+            'count_2', coalesce('count_2', 'count_1'))
+
+        num_create_events_with_growth_rate_df = \
+            joined_num_create_events_df \
+            .withColumn(
+                'weekly_increase_rate',
+                ((joined_num_create_events_df.count_1 - joined_num_create_events_df.count_2) / joined_num_create_events_df.count_1)
+            ) \
+            .select(
+                'date_created_at_1',
+                'count_1',
+                'weekly_increase_rate')
+
+        num_create_events_with_growth_rate_df.show()
+
+        return num_create_events_with_growth_rate_df
+        # except Exception as e:
+        #     self.print_error(e)
 
     def process(self, bucket_name, file_name, wheather_create_table, create_table_sql):
         """
@@ -202,7 +277,6 @@ class SparkProcessor:
         Given a file name, return a dict contains
             'string_before_date', 'year', month', day'
         """
-
         return {
             'string_before_date': file_name[:-15],
             'year': file_name[-15:-11],
