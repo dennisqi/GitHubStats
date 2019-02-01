@@ -15,6 +15,9 @@ class SparkProcessor:
             'spark://ec2-52-45-53-97.compute-1.amazonaws.com:7077')
         sc_conf.set('spark.executor.memory', '6g')
         sc_conf.set('spark.submit.deployMode', 'cluster')
+        # sc_conf.set('spark.driver.extraClassPath', '~/GitHubStats/lib/postgresql-42.2.5.jar')
+        # sc_conf.set('spark.jars', 'org.postgresql:postgresql:42.2.2')
+        sc_conf.set('spark.jars', '../../lib/postgresql-42.2.5.jar')
 
         sc = SparkContext(conf=sc_conf)
         self.accum = sc.accumulator(0)
@@ -26,16 +29,24 @@ class SparkProcessor:
         self.default_start_datetime = datetime.datetime(2011, 2, 11, 0)
         self.processor_write = processor_write
         self.seven_days = {}
+        self.mode = 'overwrite'
 
         # Connect to DB
         print('Connecting to DB...')
         # self.conn = psycopg2.connect(host=host, database=dbname, user=user, password=password)
         self.postgres_url = 'jdbc:postgresql://%s/%s' % (host, dbname)
-        self.properties = {'user': user, 'password': password}
+        self.properties = {'user': user, 'password': password} #, "driver": "org.postgresql.Driver"}
         print('Connected.')
 
-    def df_write_to_db(self, df, table_name):
-        df.write.jdbc(url=self.postgres_url, table=table_name, properties=self.properties)
+    def df_write_to_db(self, df, table_name, mode='ignore'):
+        df.write \
+            .format("jdbc") \
+            .option("driver", "org.postgresql.Driver") \
+            .option("url", self.postgres_url) \
+            .option("dbtable", table_name) \
+            .option("user", self.properties['user']) \
+            .option("password", self.properties['password']) \
+            .save()
 
     def write_to_db(self, wheather_create_table, create_table_sql, insert_sql, insert_param, file_name):
         """
@@ -64,7 +75,10 @@ class SparkProcessor:
         """Given a bucket name read all file on that bucket to a df
         """
         df = self.sqlContext.read.json('s3n://' + bucket_name + '/')
-        # df.show()
+        return df
+
+    def read_files_to_df(self, bucket_name, files_names):
+        df = self.sqlContext.read.json('s3n://' + bucket_name + '/' + files_names)
         return df
 
     def process_df(self, df):
@@ -103,7 +117,7 @@ class SparkProcessor:
             num_create_events_by_date_df_1 \
             .withColumn(
                 'last_week_date_created_at',
-                date_add(num_create_events_by_date_df_1.date_created_at_1, 7)) \
+                date_add(num_create_events_by_date_df_1.date_created_at_1, -7)) \
             .join(
                 num_create_events_by_date_df_2,
                 col('last_week_date_created_at')
@@ -117,7 +131,7 @@ class SparkProcessor:
             joined_num_create_events_df \
             .withColumn(
                 'weekly_increase_rate',
-                ((joined_num_create_events_df.count_1 - joined_num_create_events_df.count_2) / joined_num_create_events_df.count_1)
+                ((joined_num_create_events_df.count_1 - joined_num_create_events_df.count_2) / joined_num_create_events_df.count_2)
             ) \
             .select(
                 'date_created_at_1',
@@ -129,6 +143,34 @@ class SparkProcessor:
         return num_create_events_with_growth_rate_df
         # except Exception as e:
         #     self.print_error(e)
+
+    def process_present_df(self, present_df, table_name):
+        df_columns = present_df.columns
+        df_first_record = present_df.first()
+        keyword = 'object' if 'object' in df_first_record['payload'] else 'ref_type'
+
+        num_create_events_df = \
+            present_df \
+            .filter(col('payload')[keyword] == 'repository') \
+            .filter((col('type') == 'CreateEvent') | (col('type') == 'Event'))
+
+        num_create_events_by_date_df = \
+            num_create_events_df \
+            .groupby(to_date(present_df.created_at).alias('date_created_at')) \
+            .count()
+
+        return num_create_events_by_date_df.withColumn(
+            'weekly_increase_rate',
+            self.sqlContext
+                .read
+                .format("jdbc")
+                .option("driver", "org.postgresql.Driver")
+                .option("url", self.postgres_url)
+                .option("dbtable", "select count_1 from %s where date_created_at_1 = %s" % (table_name, date_add(num_create_events_by_date_df.date_created_at, -7)))
+                .option("user", self.properties['user'])
+                .option("password", self.properties['password'])
+                .load()
+            )
 
     def process(self, bucket_name, file_name, wheather_create_table, create_table_sql):
         """

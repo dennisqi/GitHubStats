@@ -1,10 +1,18 @@
 import os
+import sys
 import time
 from datetime import timedelta
 from spark_processor import SparkProcessor
 
 
 if __name__ == '__main__':
+
+    history_or_present = None
+
+    if len(sys.argv) < 2 or sys.argv[1].lower() not in ['history', 'present']:
+        raise ValueError('Need to specify "history" or "present"')
+    else:
+        history_or_present = sys.argv[1]
 
     # Connect to DB to write into
     host = os.environ.get('PG_HOST')
@@ -21,12 +29,21 @@ if __name__ == '__main__':
         host, dbname, user, password, processor_write
     )
 
+    # bucket_name = 'gharchive'
     bucket_name = 'ghstats-small-test'
 
-    df = processor.read_all_to_df(bucket_name)
-    result_df = processor.process_df(df)
+    # table_name = 'gharchive'
+    table_name = 'ghstatssmalltest'
 
-    table_name = 'ghstats-small-test'
+    if history_or_present == 'history':
+        df = processor.read_all_to_df(bucket_name)
+        result_df = processor.process_df(df)
+    else:
+        files_names = '*'
+        table_name = 'ghstatssmalltest'
+        present_df = processor.read_files_to_df(bucket_name, files_names)
+        result_df = processor.process_present_df(present_df, table_name)
+
     processor.df_write_to_db(result_df, table_name)
 
     # # two fiels that contains file names what we have processed
