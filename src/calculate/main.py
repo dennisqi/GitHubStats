@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import datetime
 from datetime import timedelta
 from spark_processor import SparkProcessor
 
@@ -35,16 +36,23 @@ if __name__ == '__main__':
     # table_name = 'gharchive'
     table_name = 'ghstatssmalltest'
 
+    result_df = None
+
+    spark_recent_todo_files = '../../data/spark_recent_todo_s3_urls.txt'
+
     if history_or_present == 'history':
-        df = processor.read_all_to_df(bucket_name)
-        result_df = processor.process_df(df)
+        # df = processor.read_all_to_df(bucket_name)
+        # result_df = processor.process_df(df)
+        pass
     else:
-        files_names = '*'
-        table_name = 'ghstatssmalltest'
-        present_df = processor.read_files_to_df(bucket_name, files_names)
+        # start_date = datetime.datetime(2011, 2, 25, 0)
+        # start_date -= timedelta(days=1)
+        # processor.generate_todo_urls(spark_recent_todo_files, table_name, bucket_name, start_date)
+        # s3_urls = processor.read_all_sep_comma(spark_recent_todo_files)
+        # present_df = processor.read_files_to_df(s3_urls)
         result_df = processor.process_present_df(present_df, table_name)
 
-    processor.df_write_to_db(result_df, table_name)
+    # processor.df_write_to_db(result_df, table_name)
 
     # # two fiels that contains file names what we have processed
     # #   and are going to process
