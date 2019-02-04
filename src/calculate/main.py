@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import datetime
-from datetime import timedelta
 from spark_processor import SparkProcessor
 
 
@@ -10,103 +9,101 @@ if __name__ == '__main__':
 
     history_or_present = None
 
+    # There are two types of processing,
+    # history data processing and present data processing
+    #   e.g. history: 2011-02-12 ~ 2019-02-02
+    #   e.g. present: last_processed_date ~ now
     if len(sys.argv) < 2 or sys.argv[1].lower() not in ['history', 'present']:
         raise ValueError('Need to specify "history" or "present"')
     else:
         history_or_present = sys.argv[1]
 
-    # Connect to DB to write into
+    # conf of DB
     host = os.environ.get('PG_HOST')
     dbname = 'dbname'
     user = os.environ.get('PG_USER')
     password = os.environ.get('PG_PSWD')
 
-    processor_write = ''
-
-    # Read all files from s3 bucket
+    # Create a spark processor
     processor = SparkProcessor(
         os.environ.get('S3_ACCESS_KEY_ID'),
         os.environ.get('S3_SECRET_ACCESS_KEY'),
-        host, dbname, user, password, processor_write
+        host, dbname, user, password
     )
 
-    # bucket_name = 'gharchive'
-    bucket_name = 'ghstats-small-test'
+    bucket_name = 'gharchive'
+    # bucket_name = 'ghstats-small-test'
 
-    # table_name = 'gharchive'
-    table_name = 'ghstatssmalltest'
+    table_name = 'gharchive'
+    # table_name = 'ghstatssmalltest'
 
+    # The dataframe that will be stored into postgresql
     result_df = None
 
-    spark_recent_todo_files = '../../data/spark_recent_todo_s3_urls.txt'
-
     if history_or_present == 'history':
-        # df = processor.read_all_to_df(bucket_name)
-        # result_df = processor.process_df(df)
-        pass
+        # path = 's3n://' + bucket_name + '/'
+        path = ['s3n://' + bucket_name + '/2019*']
+
+        start_time = time.time()
+        df = processor.read_all_to_df(bucket_name, path)
+        end_time = time.time()
+        print("Read: --- %s seconds ---" % (end_time - start_time))
+
+        start_time = time.time()
+        result_df = processor.process_history_df(df)
+        end_time = time.time()
+        print("Calc: --- %s seconds ---" % (end_time - start_time))
+
+        start_time = time.time()
+        processor.df_jdbc_write_to_db(result_df, table_name)
+        end_time = time.time()
+        print("JDBC: --- %s seconds ---" % (end_time - start_time))
+
+        insert_sql = "INSERT INTO num_repo_creation_v3 VALUES (%s, %s, %s);"
+        start_time = time.time()
+        for row in result_df.rdd.toLocalIterator():
+            insert_param = (row.date_created_at, row.count, row.weekly_increase_rate)
+            processor.df_psycopg2_write_to_db(insert_sql, insert_param)
+        end_time = time.time()
+        print("psy2: --- %s seconds ---" % (end_time - start_time))
+
     else:
-        # start_date = datetime.datetime(2011, 2, 25, 0)
-        # start_date -= timedelta(days=1)
-        # processor.generate_todo_urls(spark_recent_todo_files, table_name, bucket_name, start_date)
-        # s3_urls = processor.read_all_sep_comma(spark_recent_todo_files)
-        # present_df = processor.read_files_to_df(s3_urls)
+        # If it is present processing,
+        # spark_recent_todo_files contains all urls to each archive json file
+        spark_recent_todo_files = '../../data/spark_recent_todo_s3_urls.txt'
+
+        start_date = datetime.datetime(2011, 2, 25, 0)
+        start_date -= datetime.timedelta(days=1)
+
+        start_time = time.time()
+        processor.generate_todo_urls(
+            spark_recent_todo_files, table_name, bucket_name, start_date)
+        end_time = time.time()
+        print("Gene: --- %s seconds ---" % (end_time - start_time))
+
+        start_time = time.time()
+        s3_urls = processor.read_all_to_list(spark_recent_todo_files)
+        end_time = time.time()
+        print("Conv: --- %s seconds ---" % (end_time - start_time))
+
+        start_time = time.time()
+        present_df = processor.read_files_to_df(s3_urls)
+        end_time = time.time()
+        print("Read: --- %s seconds ---" % (end_time - start_time))
+
+        start_time = time.time()
         result_df = processor.process_present_df(present_df, table_name)
+        end_time = time.time()
+        print("Calc: --- %s seconds ---" % (end_time - start_time))
 
-    # processor.df_write_to_db(result_df, table_name)
+        processor.df_jdbc_write_to_db(result_df, table_name)
+        end_time = time.time()
+        print("JDBC: --- %s seconds ---" % (end_time - start_time))
 
-    # # two fiels that contains file names what we have processed
-    # #   and are going to process
-    # processor_read = '../../data/processor_read.txt'
-    # processor_write = '../../data/processor_write.txt'
-    #
-    #
-    # # SQL query for creating table
-    # create_table_sql = """
-    #     CREATE TABLE IF NOT EXISTS num_repo_creation_v3 (
-    #         date_time timestamp PRIMARY KEY,
-    #         num_creation integer NOT NULL,
-    #         increase_rate_last_week double precision NOT NULL
-    #     );
-    # """
-    # insert_sql = "INSERT INTO num_repo_creation_v3 VALUES (%s, %s, %s);"
-    #
-    # # bucket_name is the s3 bucket that we read from
-    # bucket_name = 'ghalargefiletest'
-    #
-    # # indicates wheather or not to create table
-    # wheather_create_table = True
-    #
-    # processor = SparkProcessor(
-    #     os.environ.get('S3_ACCESS_KEY_ID'),
-    #     os.environ.get('S3_SECRET_ACCESS_KEY'),
-    #     host, dbname, user, password, processor_write
-    # )
-    #
-    # # head + datetime + tail = filename
-    # #   ghalarge + 2011-05-03 + .json = ghalarge2011-05-03.json
-    # head = 'ghalarge'
-    # tail = '.json'
-    #
-    # processor.generate_processor_read_file(processor_read, processor_write, head, tail)
-    #
-    # counter = 0
-    # # Read from processor_read.txt which contains lines of file names on S3
-    # for file_name in processor.get_lines_of_file(file=processor_read):
-    #
-    #     # result_d is a dict contains date_time and num_create_events
-    #     result_d = processor.process(bucket_name, file_name, wheather_create_table, create_table_sql)
-    #     wheather_create_table = False
-    #
-    #     if not result_d:
-    #         print('RECORD IS EMPTY ' + file_name)
-    #         continue
-    #
-    #     # Generate parameter and sql query to insert in to DB table
-    #     insert_param = (
-    #         result_d['date_time'],
-    #         result_d['num_create_events'],
-    #         result_d['rate_last_week'])
-    #
-    #     # Write into DB, create table only one time, then set wheather_create_table to False
-    #     processor.write_to_db(wheather_create_table, create_table_sql, insert_sql, insert_param, file_name)
-    #     print('INSERTED RECODR: ' + file_name)
+        insert_sql = "INSERT INTO num_repo_creation_v3 VALUES (%s, %s, %s);"
+        start_time = time.time()
+        for row in result_df.rdd.toLocalIterator():
+            insert_param = (row.date_created_at, row.count, row.weekly_increase_rate)
+            processor.df_psycopg2_write_to_db(insert_sql, insert_param)
+        end_time = time.time()
+        print("psy2: --- %s seconds ---" % (end_time - start_time))
