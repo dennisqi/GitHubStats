@@ -33,16 +33,21 @@ if __name__ == '__main__':
 
     bucket_name = 'gharchive'
     # bucket_name = 'ghstats-small-test'
+    # bucket_name = 'ghalargefiletest'
 
     table_name = 'gharchive'
     # table_name = 'ghstatssmalltest'
+    # table_name = 'ghalargefiletest'
 
     # The dataframe that will be stored into postgresql
     result_df = None
 
     if history_or_present == 'history':
         # path = 's3n://' + bucket_name + '/'
-        path = ['s3n://' + bucket_name + '/2019*']
+        path = [
+            's3n://' + bucket_name + '/' + '2018*',
+            's3n://' + bucket_name + '/' + '2019*'
+        ]
 
         start_time = time.time()
         df = processor.read_all_to_df(bucket_name, path)
@@ -59,13 +64,13 @@ if __name__ == '__main__':
         end_time = time.time()
         print("JDBC: --- %s seconds ---" % (end_time - start_time))
 
-        insert_sql = "INSERT INTO num_repo_creation_v3 VALUES (%s, %s, %s);"
-        start_time = time.time()
-        for row in result_df.rdd.toLocalIterator():
-            insert_param = (row.date_created_at, row.count, row.weekly_increase_rate)
-            processor.df_psycopg2_write_to_db(insert_sql, insert_param)
-        end_time = time.time()
-        print("psy2: --- %s seconds ---" % (end_time - start_time))
+        # insert_sql = "INSERT INTO num_repo_creation_v3 VALUES (%s, %s, %s);"
+        # start_time = time.time()
+        # for row in result_df.rdd.toLocalIterator():
+        #     insert_param = (row.date_created_at_1, row.count_1, row.weekly_increase_rate)
+        #     processor.df_psycopg2_write_to_db(insert_sql, insert_param)
+        # end_time = time.time()
+        # print("psy2: --- %s seconds ---" % (end_time - start_time))
 
     else:
         # If it is present processing,
@@ -100,10 +105,10 @@ if __name__ == '__main__':
         end_time = time.time()
         print("JDBC: --- %s seconds ---" % (end_time - start_time))
 
-        insert_sql = "INSERT INTO num_repo_creation_v3 VALUES (%s, %s, %s);"
-        start_time = time.time()
-        for row in result_df.rdd.toLocalIterator():
-            insert_param = (row.date_created_at, row.count, row.weekly_increase_rate)
-            processor.df_psycopg2_write_to_db(insert_sql, insert_param)
-        end_time = time.time()
-        print("psy2: --- %s seconds ---" % (end_time - start_time))
+        # insert_sql = "INSERT INTO num_repo_creation_v3 VALUES (%s, %s, %s);"
+        # start_time = time.time()
+        # for row in result_df.rdd.toLocalIterator():
+        #     insert_param = (row.date_created_at_1, row.count_1, row.weekly_increase_rate)
+        #     processor.df_psycopg2_write_to_db(insert_sql, insert_param)
+        # end_time = time.time()
+        # print("psy2: --- %s seconds ---" % (end_time - start_time))

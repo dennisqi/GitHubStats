@@ -7,12 +7,14 @@ class UrlFileGenerator(object):
     """
     Generates the urls of files that are not in S3.
     Stores them into data/coming_urls.txt.
+    This file will be used to 'wget' .gz file from github archive website
+    and unzip and transfer to s3.
     """
 
     def __init__(
         self,
-        saved_urls_file='/home/ubuntu/GitHubStats/data/url_generator_saved_urls.txt',
-        coming_urls_file='/home/ubuntu/GitHubStats/data/url_generator_coming_urls.txt',
+        saved_urls_file='../../data/url_generator_saved_urls.txt',
+        coming_urls_file='../../data/url_generator_coming_urls.txt',
         default_start_datetime=datetime.datetime(2011, 2, 11, 23)
     ):
         self.saved_urls_file = saved_urls_file
@@ -22,6 +24,12 @@ class UrlFileGenerator(object):
         self.default_start_datetime = default_start_datetime
 
     def get_start_datetime(self):
+        """
+        Read the last line of url_generator_saved_urls.txt, find the last
+        processed file url, parse the date using the file name.
+        http://data.gharchive.org/2019-02-02-1.json.gz
+        => 2019-02-02 01:00:00
+        """
         latest_line = None
         if os.path.isfile(self.saved_urls_file):
             output = subprocess.Popen(
@@ -34,6 +42,11 @@ class UrlFileGenerator(object):
         return self.parse_datetime(latest_line)
 
     def parse_datetime(self, last_line):
+        """
+        Given the last line, return the datetime in the url
+        http://data.gharchive.org/2019-02-02-1.json.gz
+        => 2019-02-02 01:00:00
+        """
         substring = last_line.split('.')[-3]
         if substring:
             splited = substring.split('/')
@@ -43,6 +56,10 @@ class UrlFileGenerator(object):
         raise ValueError('The latest url in latest_url_file is not valid.')
 
     def parse(self, string):
+        """
+        Given the YYYY-MM-DD-H return the accutal datetime
+        2019-02-02-1 => 2019-02-02 01:00:00
+        """
         splited = string.split('-')
         if splited:
             return datetime.datetime(
@@ -52,6 +69,9 @@ class UrlFileGenerator(object):
 
     def url_generator(self, start_datetime, end_datetime,
                       unit, head_url, tail_url):
+        """
+        Given the start and end datetime, generate the urls between them
+        """
         while start_datetime <= end_datetime:
             full_url = head_url \
                 + str(start_datetime.year) + '-' \
@@ -67,6 +87,10 @@ class UrlFileGenerator(object):
                   end_datetime=datetime.datetime.utcnow(),
                   unit_datetime=datetime.timedelta(hours=1)
                   ):
+        """
+        write the url into the file using url_head + datetime + url_tail
+        e.g. http://data.gharchive.org/ + 2018-01-02-1 + .json.gz
+        """
         start_datetime += unit_datetime
 
         # set to the beginning of the day
@@ -88,4 +112,5 @@ class UrlFileGenerator(object):
 if __name__ == '__main__':
     url_file_generator = UrlFileGenerator()
     start_datetime = url_file_generator.get_start_datetime()
-    url_file_generator.write_url(start_datetime)
+    url_file_generator.write_url(
+        start_datetime, end_datetime=datetime.datetime.utcnow())
