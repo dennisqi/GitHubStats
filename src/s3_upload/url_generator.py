@@ -52,7 +52,7 @@ class UrlFileGenerator(object):
 
     def url_generator(self, start_datetime, end_datetime,
                       unit, head_url, tail_url):
-        while start_datetime < end_datetime:
+        while start_datetime <= end_datetime:
             full_url = head_url \
                 + str(start_datetime.year) + '-' \
                 + '%02d' % start_datetime.month + '-' \
@@ -68,7 +68,14 @@ class UrlFileGenerator(object):
                   unit_datetime=datetime.timedelta(hours=1)
                   ):
         start_datetime += unit_datetime
+
+        # set to the beginning of the day
+        end_date = datetime.date(end_datetime.year, end_datetime.month, end_datetime.day)
+        end_datetime = datetime.datetime(end_date.year, end_date.month, end_date.day)
+
+        # set to yesterday 23:00
         end_datetime -= unit_datetime
+
         if start_datetime < end_datetime:
             for url in self.url_generator(
                     start_datetime, end_datetime,
