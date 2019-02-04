@@ -29,14 +29,9 @@ upload_to_s3 = BashOperator(
     bash_command='~/GitHubStats/src/s3_upload/s3upload.sh ~/GitHubStats/data/url_generator_coming_urls.txt ~/GitHubStats/data/url_generator_saved_urls.txt gharchive',
     dag=dag)
 
-merge_files = BashOperator(
-    task_id='merge_files',
-    bash_command='python ~/GitHubStats/src/merge_files/merge_files.py',
-    dag=dag)
-
 spark_submit = BashOperator(
     task_id='spark_submit',
-    bash_command='spark-submit ~/GitHubStats/src/calculate/main.py',
+    bash_command='spark-submit ~/GitHubStats/src/calculate/main.py present',
     dag=dag)
 
-generate_url >> upload_to_s3 >> merge_files >> spark_submit
+generate_url >> upload_to_s3 >> spark_submit
