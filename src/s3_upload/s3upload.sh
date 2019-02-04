@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# for each line of url in url_generator_coming_urls.txt
+# wget, unzip, and send to aws S3 
+# after send to s3, store the saved url in url_generator_saved_urls.txt
 while read p; do
     gz_file=${p##*/}
     file_name=${gz_file::${#gz_file} - 3}
