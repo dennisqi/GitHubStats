@@ -1,2 +1,0 @@
-http://data.gharchive.org/2017-09-18-20.json.gz
-http://data.gharchive.org/2017-09-18-21.json.gz
