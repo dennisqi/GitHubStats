@@ -34,8 +34,6 @@ class SparkProcessor:
 
         # Connect to DB
         print('Connecting to DB...')
-        self.conn = psycopg2.connect(host=host, database=dbname, user=user, password=password)
-        self.postgres_url = 'jdbc:postgresql://%s/%s' % (host, dbname)
         self.properties = {'user': user, 'password': password, 'driver': "org.postgresql.Driver"}
         print('Connected.')
 
@@ -105,10 +103,8 @@ class SparkProcessor:
         # There are two versions of API for CreateEvent of repository:
         # - One is        col("payload")['object'] == 'repository'
         # - Another is    col("payload")['ref_type'] == 'repository'
-        # try:
         df_columns = df.columns
         df_first_record = df.first()
-        # keyword = 'object' if 'object' in df_first_record['payload'] else 'ref_type'
 
         num_create_events_df = \
             df \
