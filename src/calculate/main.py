@@ -36,20 +36,14 @@ if __name__ == '__main__':
     bucket_name = 'gharchive'
 
     table_name = 'gharchive'
-    table_name_wow = 'gharchivewowtest'  # month over month growth rate
     table_name_mom = 'gharchivemomtest'  # week over week growth rate
-
-    # The dataframe that will be stored into postgresql
-    result_df = None
 
     if history_or_present == 'history':
         path = ['s3n://' + bucket_name + '/*']
         df = processor.read_all_to_df(bucket_name, path)
         result_df = processor.process_history_df(df)
-        result_df_wow = processor.process_history_df_wow(df)
         result_df_mom = processor.process_history_df_mom(df)
         processor.df_jdbc_write_to_db(result_df, table_name, mode='append')
-        processor.df_jdbc_write_to_db(result_df_wow, table_name_wow, mode='append')
         processor.df_jdbc_write_to_db(result_df_mom, table_name_mom, mode='append')
 
     else:

@@ -63,21 +63,6 @@ class SparkProcessor:
             .option("password", self.properties['password']) \
             .save()
 
-    def df_psycopg2_write_to_db(self, insert_sql, insert_param):
-        """
-        If wheather_create_table is True, execute create_table_sql.
-        Eexecute insert_sql with insert_paramself.
-        Append backup_sentence to self.backup_file.
-        """
-        cur = self.conn.cursor()
-        try:
-            cur.execute(insert_sql, insert_param)
-        except psycopg2.IntegrityError as ie:
-            print("Diplicate key.")
-
-        self.conn.commit()
-        cur.close()
-
     def read_all_to_df(self, bucket_name, path):
         """
         Given a bucket name read all file on that bucket to a df
@@ -157,81 +142,6 @@ class SparkProcessor:
             ) \
             .select(
                 'date_created_at_1',
-                'count_1',
-                'weekly_increase_rate')
-
-        num_create_events_with_growth_rate_df.show()
-
-        return num_create_events_with_growth_rate_df
-
-    def process_history_df_wow(self, df):
-        """
-        Process function for history data, generate result dataframe
-        that contains week, number of create events
-        """
-        # There are two versions of API for CreateEvent of repository:
-        # - One is        col("payload")['object'] == 'repository'
-        # - Another is    col("payload")['ref_type'] == 'repository'
-        # try:
-        df_columns = df.columns
-        df_first_record = df.first()
-        # keyword = 'object' if 'object' in df_first_record['payload'] else 'ref_type'
-
-        num_create_events_df = \
-            df \
-            .filter((col('payload')['ref_type'] == 'repository') | (col('payload')['object'] == 'repository')) \
-            .filter((col('type') == 'CreateEvent') | (col('type') == 'Event'))
-
-        # count the number of create events happened in one week (group by week)
-        num_create_events_by_week_df = num_create_events_df.groupby(date_trunc('week', df.created_at).alias('week_created_at')).count()
-
-        # calculate the grawth rate of that day compare to last week
-        # dulicated two dataframes, for each day in the first dataframe
-        # find the number fo create events in the second dataframe
-        # of a day that is 7 days before the day in the first dataframe
-        # [df1] 2015-01-07 -> [df2] 2015-01-01 (7 days)
-        num_create_events_by_week_df_1 = num_create_events_by_week_df.alias('num_create_events_by_week_df_1')
-
-        num_create_events_by_week_df_1 = \
-            num_create_events_by_week_df_1 \
-            .select(
-                col('week_created_at').alias('week_created_at_1'),
-                col('count').alias('count_1'))
-
-        num_create_events_by_week_df_2 = num_create_events_by_week_df.alias('num_create_events_by_week_df_2')
-
-        num_create_events_by_week_df_2 = \
-            num_create_events_by_week_df_2 \
-            .select(
-                col('week_created_at').alias('week_created_at_2'),
-                col('count').alias('count_2'))
-
-        joined_num_create_events_df = \
-            num_create_events_by_week_df_1 \
-            .withColumn(
-                'last_week_week_created_at',
-                date_trunc(
-                    'week',
-                    date_add(num_create_events_by_week_df_1.week_created_at_1, -7))) \
-            .join(
-                num_create_events_by_week_df_2,
-                col('last_week_week_created_at')
-                == col('week_created_at_2'),
-                how='left_outer')
-
-        joined_num_create_events_df.show()
-
-        joined_num_create_events_df = joined_num_create_events_df.withColumn(
-            'count_2', coalesce('count_2', 'count_1'))
-
-        num_create_events_with_growth_rate_df = \
-            joined_num_create_events_df \
-            .withColumn(
-                'weekly_increase_rate',
-                ((joined_num_create_events_df.count_1 - joined_num_create_events_df.count_2) / joined_num_create_events_df.count_2)
-            ) \
-            .select(
-                'week_created_at_1',
                 'count_1',
                 'weekly_increase_rate')
 
