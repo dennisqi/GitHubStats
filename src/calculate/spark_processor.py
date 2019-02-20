@@ -17,9 +17,9 @@ class SparkProcessor:
         sc_conf.setAppName(app_name)
         sc_conf.setMaster(
             'spark://ec2-52-45-53-97.compute-1.amazonaws.com:7077')
-        sc_conf.set('spark.executor.memory', '5g')
+        sc_conf.set('spark.executor.memory', '6g')
         sc_conf.set('spark.submit.deployMode', 'cluster')
-        sc_conf.set('spark.executor.cores', 5)
+        sc_conf.set('spark.executor.cores', 6)
         sc_conf.set('spark.jars', '../../lib/postgresql-42.2.5.jar')
 
         sc = SparkContext(conf=sc_conf)
@@ -36,6 +36,7 @@ class SparkProcessor:
         print('Connecting to DB...')
         self.properties = {'user': user, 'password': password, 'driver': "org.postgresql.Driver"}
         print('Connected.')
+        self.postgres_url = 'jdbc:postgresql://%s/%s' % (host, dbname)
 
         self.schema = StructType([
             StructField('created_at', StringType(), True),
