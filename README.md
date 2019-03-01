@@ -33,5 +33,3 @@ These events are aggregated into hourly archives, which you can access with any 
 * Front-end reads from Postgres and plot chars using Dash by Plotly.
 
 <hr/>
-
-## How to install and get it up and running
