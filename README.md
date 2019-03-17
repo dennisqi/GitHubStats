@@ -33,3 +33,15 @@ These events are aggregated into hourly archives, which you can access with any 
 * Front-end reads from Postgres and plot chars using Dash by Plotly.
 
 <hr/>
+
+## How to install and get it up and running
+To run the program, you need to have a Spark running on your machine, then use the following spark submit comment to run it for processing history data.
+```
+$ cd src/calculate/
+$ spark-submit —packages org.postgresql:postgresql:42.2.2 main.py history
+```
+
+or
+```
+$ spark-submit —packages org.postgresql:postgresql:42.2.2 main.py present
+```
