@@ -4,6 +4,7 @@ import dash_core_components as dcc
 import secret
 import psycopg2
 
+
 conn = psycopg2.connect(
     host=secret.host, database=secret.dbname,
     user=secret.user, password=secret.password)

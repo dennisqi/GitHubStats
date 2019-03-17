@@ -3,14 +3,8 @@ import random
 import psycopg2
 from dash.dependencies import Input, Output
 import secret
-import dash_core_components as dcc
-import dash_html_components as html
-import plotly.graph_objs as go
-from datetime import date
-import calendar
 import flask
 import pandas as pd
-import time
 import os
 from html_text import html_text
 from app_layout import app_layout
